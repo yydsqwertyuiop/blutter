@@ -62,7 +62,9 @@ for path in ('vm', 'platform', 'vm/heap', 'vm/ffi', 'vm/regexp'):
 extra_files = ( 'vm/version.cc', 'vm/dart_api_impl.cc', 'vm/native_api_impl.cc',
         'vm/compiler/runtime_api.cc', 'vm/compiler/jit/compiler.cc', 'platform/no_tsan.cc')
 for name in extra_files:
-    cc_srcs.append(os.path.join(BASEDIR, name))
+    src = os.path.join(BASEDIR, name)
+    if os.path.isfile(src):
+        cc_srcs.append(src)
 
 # extra public header
 hdrs.append(os.path.join(BASEDIR, 'vm/version.h'))
