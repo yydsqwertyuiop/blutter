@@ -50,19 +50,32 @@ hdrs = []
 for path in ('vm', 'platform', 'vm/heap', 'vm/ffi', 'vm/regexp'):
     path = os.path.join(BASEDIR, path)
     if not os.path.isdir(path):
+        print(f"Warning: Directory not found: {path}")
         continue
-    srcs = get_src_files(path)
-    #cc_srcs.extend([ os.path.join(path, src) for src in srcs if src.endswith('.cc') ])
-    for src in srcs:
-        cc_srcs.append(os.path.join(path, src))
-        if src.endswith('h'):
-            hdrs.append(os.path.join(path, src))
+    try:
+        srcs = get_src_files(path)
+        #cc_srcs.extend([ os.path.join(path, src) for src in srcs if src.endswith('.cc') ])
+        for src in srcs:
+            src_path = os.path.join(path, src)
+            if os.path.isfile(src_path):
+                cc_srcs.append(src_path)
+                if src.endswith('h'):
+                    hdrs.append(src_path)
+            else:
+                print(f"Warning: Source file not found: {src_path}")
+    except Exception as e:
+        print(f"Warning: Failed to process directory {path}: {e}")
+        continue
 
 # extra source files
 extra_files = ( 'vm/version.cc', 'vm/dart_api_impl.cc', 'vm/native_api_impl.cc',
         'vm/compiler/runtime_api.cc', 'vm/compiler/jit/compiler.cc', 'platform/no_tsan.cc')
 for name in extra_files:
-    cc_srcs.append(os.path.join(BASEDIR, name))
+    file_path = os.path.join(BASEDIR, name)
+    if os.path.isfile(file_path):
+        cc_srcs.append(file_path)
+    else:
+        print(f"Warning: Extra source file not found: {file_path}")
 
 # extra public header
 hdrs.append(os.path.join(BASEDIR, 'vm/version.h'))
@@ -71,8 +84,20 @@ hdrs.append(os.path.join(BASEDIR, 'vm/version.h'))
 for lib in ('async', 'concurrent', 'core', 'developer', 'ffi', 'isolate', 'math', 'typed_data', 'vmservice', 'internal'):
     gni_file = os.path.join(BASEDIR, 'lib', lib+'_sources.gni')
     if os.path.isfile(gni_file):
-        srcs = get_default_src_files(gni_file)
-        cc_srcs.extend([ os.path.join(BASEDIR, 'lib', src) for src in srcs if src.endswith('.cc') ])
+        try:
+            srcs = get_default_src_files(gni_file)
+            if srcs:
+                for src in srcs:
+                    if src.endswith('.cc'):
+                        src_path = os.path.join(BASEDIR, 'lib', src)
+                        if os.path.isfile(src_path):
+                            cc_srcs.append(src_path)
+                        else:
+                            print(f"Warning: Library source file not found: {src_path}")
+        except Exception as e:
+            print(f"Warning: Failed to process library {lib}: {e}")
+    else:
+        print(f"Warning: Library gni file not found: {gni_file}")
 
 double_conversion_dir = BASEDIR+'/third_party/double-conversion/src'
 if not os.path.isdir(double_conversion_dir):
@@ -90,6 +115,14 @@ if os.sep == '\\':
     cc_srcs = [ src.replace(os.sep, '/') for src in cc_srcs ]
     hdrs = [ src.replace(os.sep, '/') for src in hdrs ]
 
+# Check if we have any source files
+if not cc_srcs:
+    print("Error: No source files found! This will cause CMake to fail.")
+    print("Please check if the Dart SDK was properly downloaded and the directory structure is correct.")
+    sys.exit(1)
+
+print(f"Found {len(cc_srcs)} source files")
+
 with open('sourcelist.cmake', 'w') as f:
     f.write('set(SRCS \n    ')
     f.write('\n    '.join(cc_srcs))
@@ -99,4 +132,3 @@ with open('sourcelist.cmake', 'w') as f:
     #f.write('set(PUB_HDRS \n    ')
     #f.write('\n    '.join(hdrs))
     #f.write('\n)\n')
-
